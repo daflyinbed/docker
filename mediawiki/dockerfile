@@ -1,0 +1,63 @@
+FROM php:8.1-cli-alpine3.19 as backend
+
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN install-php-extensions \
+    apcu \
+    bcmath \
+    calendar \
+    gd \
+    gettext \
+    intl \
+    luasandbox \
+    mysqli \
+    pcntl \
+    pdo_mysql \
+    redis \
+    shmop \
+    soap \
+    sockets \
+    sysvsem \
+    xmlrpc \
+    xsl \
+    zip \
+    opcache \
+    excimer \
+    @composer
+
+# MediaWiki setup 
+# copy from https://github.com/wikimedia/mediawiki-docker/blob/1161796f04d6a6bcbec9fb4c67a8ce7248392403/1.39/fpm-alpine/Dockerfile#L64C1-L87C34
+RUN set -eux; \
+    apk add --no-cache --virtual .fetch-deps \
+    bzip2 \
+    gnupg \
+    ; \
+    \
+    curl -fSL "https://releases.wikimedia.org/mediawiki/${MEDIAWIKI_MAJOR_VERSION}/mediawiki-${MEDIAWIKI_VERSION}.tar.gz" -o mediawiki.tar.gz; \
+    curl -fSL "https://releases.wikimedia.org/mediawiki/${MEDIAWIKI_MAJOR_VERSION}/mediawiki-${MEDIAWIKI_VERSION}.tar.gz.sig" -o mediawiki.tar.gz.sig; \
+    export GNUPGHOME="$(mktemp -d)"; \
+    # gpg key from https://www.mediawiki.org/keys/keys.txt
+    gpg --batch --keyserver keyserver.ubuntu.com --recv-keys \
+    D7D6767D135A514BEB86E9BA75682B08E8A3FEC4 \
+    441276E9CCD15F44F6D97D18C119E1A64D70938E \
+    F7F780D82EBFB8A56556E7EE82403E59F9F8CD79 \
+    1D98867E82982C8FE0ABC25F9B69B3109D3BB7B0 \
+    ; \
+    gpg --batch --verify mediawiki.tar.gz.sig mediawiki.tar.gz; \
+    tar -x --strip-components=1 -f mediawiki.tar.gz; \
+    gpgconf --kill all; \
+    rm -rf "$GNUPGHOME" mediawiki.tar.gz.sig mediawiki.tar.gz; \
+    chown -R www-data:www-data extensions skins cache images; \
+    \
+    apk del --no-network .fetch-deps
+
+# RUN composer install --optimize-autoloader --no-dev
+
+# COPY --from=ghcr.io/roadrunner-server/roadrunner:2023.1.1 /usr/bin/rr /app
+
+# EXPOSE 8080/tcp
+
+# # Copy application files
+# COPY ./app .
+
+# # Run RoadRunner server
+# CMD ./rr serve -c .rr.yaml
