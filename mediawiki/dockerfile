@@ -26,6 +26,10 @@ RUN install-php-extensions \
 
 # MediaWiki setup 
 # copy from https://github.com/wikimedia/mediawiki-docker/blob/1161796f04d6a6bcbec9fb4c67a8ce7248392403/1.39/fpm-alpine/Dockerfile#L64C1-L87C34
+# Version
+ENV MEDIAWIKI_MAJOR_VERSION 1.39
+ENV MEDIAWIKI_VERSION 1.39.4
+
 RUN set -eux; \
     apk add --no-cache --virtual .fetch-deps \
     bzip2 \
