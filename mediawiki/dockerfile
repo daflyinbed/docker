@@ -1,4 +1,6 @@
-FROM php:8.1-fpm as backend
+FROM php:8.1-fpm
+
+ENV TZ=Asia/Shanghai
 
 # ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 RUN curl -sSLf \
@@ -28,7 +30,14 @@ RUN install-php-extensions \
     excimer \
     @composer
 
-RUN apt update && apt install -y python3 libvips-tools  
+RUN apt update && apt install -y python3 libvips-tools
+
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+COPY ./config/php.ini /usr/local/etc/php/conf.d/php.ini
+
+COPY ./config/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-docker.conf;
+
 # MediaWiki setup 
 # copy from https://github.com/wikimedia/mediawiki-docker/blob/1161796f04d6a6bcbec9fb4c67a8ce7248392403/1.39/fpm/Dockerfile#L74C1-L101C1
 # Version
@@ -37,8 +46,8 @@ ENV MEDIAWIKI_VERSION 1.39.4
 
 RUN set -eux; \
     fetchDeps=" \
-        gnupg \
-        dirmngr \
+    gnupg \
+    dirmngr \
     "; \
     apt-get update; \
     apt-get install -y --no-install-recommends $fetchDeps; \
@@ -48,10 +57,10 @@ RUN set -eux; \
     export GNUPGHOME="$(mktemp -d)"; \
     # gpg key from https://www.mediawiki.org/keys/keys.txt
     gpg --batch --keyserver keyserver.ubuntu.com --recv-keys \
-        D7D6767D135A514BEB86E9BA75682B08E8A3FEC4 \
-        441276E9CCD15F44F6D97D18C119E1A64D70938E \
-        F7F780D82EBFB8A56556E7EE82403E59F9F8CD79 \
-        1D98867E82982C8FE0ABC25F9B69B3109D3BB7B0 \
+    D7D6767D135A514BEB86E9BA75682B08E8A3FEC4 \
+    441276E9CCD15F44F6D97D18C119E1A64D70938E \
+    F7F780D82EBFB8A56556E7EE82403E59F9F8CD79 \
+    1D98867E82982C8FE0ABC25F9B69B3109D3BB7B0 \
     ; \
     gpg --batch --verify mediawiki.tar.gz.sig mediawiki.tar.gz; \
     tar -x --strip-components=1 -f mediawiki.tar.gz; \
@@ -74,18 +83,20 @@ USER www-data
 RUN set -eux; \
     composer config --no-plugins allow-plugins.composer/installers true; \
     composer install --no-dev \
-        --ignore-platform-reqs \
-        --no-ansi \
-        --no-interaction \
-        --no-scripts; \
+    --ignore-platform-reqs \
+    --no-ansi \
+    --no-interaction \
+    --no-scripts; \
     rm -f composer.lock.json ;\
     composer update --no-dev \
-        --no-ansi \
-        --no-interaction \
-        --no-scripts; \
+    --no-ansi \
+    --no-interaction \
+    --no-scripts; \
     \
     # mv /var/www/mediawiki/extensions/Checkuser /var/www/mediawiki/extensions/CheckUser; \
     \
     chown -R www-data:www-data /var/www
+
+COPY ./LocalSettings.php /var/www/html/LocalSettings.php
 
 CMD ["php-fpm"]
